@@ -1,0 +1,20 @@
+builddir = ./build
+cxx = clang++
+ar = ar
+cflags = -g -std=c++11 -I./include -Wall -Wextra -Werror -fcolor-diagnostics
+
+rule cxx
+  command = $cxx -MMD -MF $out.d $cflags -c $in -o $out
+  description = CXX $out
+  depfile = $out.d
+
+rule link
+  command = $cxx -o $out $in $ldflags
+  description = LINK $out
+
+build $builddir/objs/range_test.o: cxx test/range_test.cpp
+build $builddir/range_test: link $builddir/objs/range_test.o
+
+build all: phony $builddir/range_test
+
+default all
