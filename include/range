@@ -37,6 +37,7 @@ namespace std {
 
 // Nothing in this namespace is part of the exported interface.
 namespace detail {
+
 /// Used as the result type of undefined functions.
 struct undefined {};
 
@@ -63,9 +64,6 @@ template<typename R>
 struct is_range : is_same<typename detail::begin_result<R>::type,
                           typename detail::end_result<R>::type> {};
 
-// This currently requires specialization and doesn't work for
-// detecting \c range<>s or iterators.  We should add
-// \c contiguous_iterator_tag to fix that.
 template<typename R>
 struct is_contiguous_range : false_type {};
 template<typename R>
@@ -112,20 +110,18 @@ template<typename T>
 constexpr auto adl_begin(T&& t) -> decltype(begin(t)) { return begin(forward<T>(t)); }
 template<typename T>
 constexpr auto adl_end(T&& t) -> decltype(end(t)) { return end(forward<T>(t)); }
+
 }
 
-/// A \c std::range<Iterator> represents a half-open iterator range
-/// built from two iterators, \c 'begin', and \c 'end'.  If \c end is
-/// not reachable from \c begin, the behavior is undefined.
+/// \brief An \c std::iterator_range<Iterator> represents a half-open range
+/// built from two iterators.
 ///
 /// The mutability of elements of the range is controlled by the
-/// Iterator argument.  Instantiate
-/// <code>range<<var>Foo</var>::iterator></code> or
-/// <code>range<<var>T</var>*></code>, or call
+/// Iterator template argument. Instantiate
+/// <code>iterator_range<<var>Foo</var>::iterator></code> or call
 /// <code>make_range(<var>non_const_container</var>)</code>, and you
 /// get a mutable range.  Instantiate
-/// <code>range<<var>Foo</var>::const_iterator></code> or
-/// <code>range<const <var>T</var>*></code>, or call
+/// <code>iterator_range<<var>Foo</var>::const_iterator></code> or call
 /// <code>make_range(<var>const_container</var>)</code>, and you get a
 /// constant range.
 ///
@@ -144,7 +140,7 @@ constexpr auto adl_end(T&& t) -> decltype(end(t)) { return end(forward<T>(t)); }
 /// the iterator access methods, but one goal here is to allow people
 /// to program without touching iterators at all.)
 template<typename Iterator>
-class range {
+class iterator_range {
   Iterator begin_, end_;
  public:
   /// \name types
@@ -170,11 +166,11 @@ class range {
   /// Creates a range of default-constructed (<em>not</em>
   /// value-initialized) iterators.  For most \c Iterator types, this
   /// will be an invalid range.
-  range() = default;
+  iterator_range() = default;
 
   /// \pre \c end is reachable from \c begin.
   /// \post <code>this->begin() == begin && this->end() == end</code>
-  constexpr range(Iterator begin, Iterator end)
+  constexpr iterator_range(Iterator begin, Iterator end)
       : begin_(begin), end_(end) {}
 
   /// \par Participates in overload resolution if:
@@ -182,23 +178,24 @@ class range {
   ///   - \c begin(r) and \c end(r) return the same type, and
   ///   - that type is convertible to \c Iterator.
   ///
-  /// \todo std::begin and std::end are overloaded between T& and
-  /// const T&, which means that if a container has only a non-const
-  /// begin or end method, then it's ill-formed to pass an rvalue to
-  /// the free function.  To avoid that problem, we don't use
-  /// std::forward<> here, so begin() and end() are always called with
-  /// an lvalue.  Another option would be to insist that rvalue
-  /// arguments to range() must have const begin() and end() methods.
+  /// \todo std::begin and std::end are overloaded between T& and const T&,
+  /// which means that if a container has only a non-const begin or end method,
+  /// then it's ill-formed to pass an rvalue to the free function. To avoid
+  /// that problem, we don't use std::forward<> here, so begin() and end() are
+  /// always called with an lvalue.  Another option would be to insist that
+  /// rvalue arguments to iterator_range() must have const begin() and end()
+  /// methods.
   template<typename R>
-  constexpr range(R&& r,
-                  typename enable_if<!is_pointer<Iterator>::value &&
-                                     detail::is_range<R>::value &&
-                                     is_convertible<typename detail::begin_result<R>::type,
-                                                    Iterator>::value
-                                     >::type* =0)
-    : begin_(detail::adl_begin(r)), end_(detail::adl_end(r)) {}
+  constexpr iterator_range(
+      R&& r,
+      typename enable_if<!is_pointer<Iterator>::value &&
+                         detail::is_range<R>::value &&
+                         is_convertible<typename detail::begin_result<R>::type,
+                                        Iterator>::value
+                         >::type* = nullptr)
+      : begin_(detail::adl_begin(r)), end_(detail::adl_end(r)) {}
 
-  /// This constructor creates a \c range<T*> from any range with
+  /// This constructor creates an \c iterator_range<T*> from any range with
   /// contiguous iterators. Because dereferencing a past-the-end
   /// iterator can be undefined behavior, empty ranges get initialized
   /// with \c nullptr rather than \c &*begin().
@@ -216,14 +213,14 @@ class range {
   /// \todo The <code>&*(i + N) == (&*i) + N</code> invariant is
   /// currently impossible to check for user-defined types.  We need a
   /// \c contiguous_iterator_tag to let users assert it.
-  template<typename R>
-  constexpr range(R&& r,
-                  typename enable_if<is_pointer<Iterator>::value &&
-                                     detail::is_contiguous_range<R>::value &&
-                                     detail::conversion_preserves_array_indexing<
-                                       decltype(&*detail::adl_begin(r)),
-                                       Iterator>::value
-                                     >::type* =0)
+  template<typename R,
+           typename DeducedIterator = Iterator,
+           typename enable_if<is_pointer<DeducedIterator>::value, int>::type = 0,
+           typename enable_if<detail::is_contiguous_range<R>::value, int>::type = 0,
+           typename enable_if<detail::conversion_preserves_array_indexing<
+                                decltype(&*detail::adl_begin(std::declval<R>())),
+                                Iterator>::value, int>::type = 0>
+  constexpr iterator_range(R&& r)
     : begin_((detail::adl_begin(r) == detail::adl_end(r) &&
               !is_pointer<decltype(detail::adl_begin(r))>::value)
              // For non-pointers, &*begin(r) is only defined behavior
@@ -281,8 +278,8 @@ class range {
   /// \pre <code>abs(index) < size() || index == -size()</code>
   ///
   /// \returns if <code>index >= 0</code>, a reference to the
-  /// <code>index</code>'th element in the range. Otherwise, a
-  /// reference to the <code>size()+index</code>'th element.
+  /// <code>index</code>'th element in the iterator_range. Otherwise,
+  /// a reference to the <code>size()+index</code>'th element.
   constexpr reference operator[](difference_type index) const {
     static_assert(is_convertible<iterator_category, random_access_iterator_tag>::value,
                   "Can only index into a random-access range.");
@@ -454,13 +451,13 @@ class range {
   /// implement with negative indices in the optimal number of
   /// increments or decrements for a bidirectional iterator, but it
   /// should be possible.  Do we want it?
-  pair<range, range> split(difference_type index) const {
+  pair<iterator_range, iterator_range> split(difference_type index) const {
     static_assert(is_convertible<iterator_category, forward_iterator_tag>::value,
                   "Calling split on a non-forward range would return a useless first result.");
     if (index >= 0) {
-      range second = *this;
+      iterator_range second = *this;
       second.pop_front_upto(index);
-      return make_pair(range(begin(), second.begin()), second);
+      return make_pair(iterator_range(begin(), second.begin()), second);
     } else {
       return dispatch_split_neg(index, iterator_category());
     }
@@ -498,13 +495,13 @@ class range {
   /// using a default would force non-random-access ranges to use an
   /// O(<code>size()</code>) algorithm to compute the end rather
   /// than the O(1) they're capable of.
-  range slice(difference_type start, difference_type stop) const {
+  iterator_range slice(difference_type start, difference_type stop) const {
     static_assert(is_convertible<iterator_category, forward_iterator_tag>::value,
                   "Calling slice on a non-forward range would destroy the original range.");
     return dispatch_slice(start, stop, iterator_category());
   }
 
-  range slice(difference_type start) const {
+  iterator_range slice(difference_type start) const {
     static_assert(is_convertible<iterator_category, forward_iterator_tag>::value,
                   "Calling slice on a non-forward range would destroy the original range.");
     return split(start).second;
@@ -569,21 +566,21 @@ private:
     return end() - begin();
   }
 
-  pair<range, range> dispatch_split_neg(difference_type index,
+  pair<iterator_range, iterator_range> dispatch_split_neg(difference_type index,
                                         forward_iterator_tag) const {
     assert(index < 0);
     difference_type size = this->size();
     return split(max<difference_type>(0, size + index));
   }
-  pair<range, range> dispatch_split_neg(difference_type index,
+  pair<iterator_range, iterator_range> dispatch_split_neg(difference_type index,
                                         bidirectional_iterator_tag) const {
     assert(index < 0);
-    range first = *this;
+    iterator_range first = *this;
     first.pop_back_upto(-index);
-    return make_pair(first, range(first.end(), end()));
+    return make_pair(first, iterator_range(first.end(), end()));
   }
 
-  range dispatch_slice(difference_type start, difference_type stop,
+  iterator_range dispatch_slice(difference_type start, difference_type stop,
                        forward_iterator_tag) const {
     if (start < 0 || stop < 0) {
       difference_type size = this->size();
@@ -598,9 +595,9 @@ private:
     advance_upto(first, start, end(), iterator_category());
     Iterator last = first;
     advance_upto(last, stop - start, end(), iterator_category());
-    return range(first, last);
+    return iterator_range(first, last);
   }
-  range dispatch_slice(const difference_type start, const difference_type stop,
+  iterator_range dispatch_slice(const difference_type start, const difference_type stop,
                        bidirectional_iterator_tag) const {
     Iterator first;
     if (start < 0) {
@@ -639,9 +636,9 @@ private:
         }
       }
     }
-    return range(first, last);
+    return iterator_range(first, last);
   }
-  range dispatch_slice(difference_type start, difference_type stop,
+  iterator_range dispatch_slice(difference_type start, difference_type stop,
                        random_access_iterator_tag) const {
     const difference_type size = this->size();
     if (start < 0)
@@ -658,17 +655,17 @@ private:
     if (stop > size)
       stop = size;
 
-    return range(begin() + start, begin() + stop);
+    return iterator_range(begin() + start, begin() + stop);
   }
 };
 
-/// \name deducing constructor wrappers
-/// \relates std::range
+/// \name Argument type deducing constructor wrappers
+/// \relates std::iterator_range
 /// \xmlonly <nonmember/> \endxmlonly
 ///
-/// These functions do the same thing as the constructor with the same
-/// signature. They just allow users to avoid writing the iterator
-/// type.
+/// These functions do the same thing as the constructors for \c iterator_range
+/// with the same signature. They just allow users to avoid writing the
+/// iterator type.
 /// @{
 
 /// \todo I'd like to define a \c make_range taking a single iterator
@@ -678,8 +675,8 @@ private:
 /// make_range() could be confusing and lead to people writing
 /// incorrect ranges of more common iterators. Is there a better name?
 template<typename Iterator>
-constexpr range<Iterator> make_range(Iterator begin, Iterator end) {
-  return range<Iterator>(begin, end);
+constexpr iterator_range<Iterator> make_range(Iterator begin, Iterator end) {
+  return iterator_range<Iterator>(begin, end);
 }
 
 /// \par Participates in overload resolution if:
@@ -687,8 +684,8 @@ constexpr range<Iterator> make_range(Iterator begin, Iterator end) {
 template<typename Range>
 constexpr auto make_range(Range&& r,
                           typename enable_if<detail::is_range<Range>::value>::type* =0)
-    -> range<decltype(begin(r))> {
-  return range<decltype(begin(r))>(r);
+    -> iterator_range<decltype(begin(r))> {
+  return iterator_range<decltype(begin(r))>(r);
 }
 
 /// \par Participates in overload resolution if:
@@ -700,8 +697,8 @@ template<typename Range>
 constexpr auto make_ptr_range(Range&& r,
                               typename enable_if<detail::is_contiguous_range<Range>::value &&
                                                  is_pointer<decltype(&*begin(r))>::value>::type* =0)
-    -> range<decltype(&*begin(r))> {
-  return range<decltype(&*begin(r))>(r);
+    -> iterator_range<decltype(&*begin(r))> {
+  return iterator_range<decltype(&*begin(r))>(r);
 }
 
 /// @}
