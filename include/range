@@ -185,14 +185,13 @@ class iterator_range {
   /// always called with an lvalue.  Another option would be to insist that
   /// rvalue arguments to iterator_range() must have const begin() and end()
   /// methods.
-  template<typename R>
-  constexpr iterator_range(
-      R&& r,
-      typename enable_if<!is_pointer<Iterator>::value &&
-                         detail::is_range<R>::value &&
-                         is_convertible<typename detail::begin_result<R>::type,
-                                        Iterator>::value
-                         >::type* = nullptr)
+  template<typename R,
+           typename DeducedIterator = Iterator,
+           typename enable_if<!is_pointer<DeducedIterator>::value, int>::type = 0,
+           typename enable_if<detail::is_range<R>::value, int>::type = 0,
+           typename enable_if<is_convertible<typename detail::begin_result<R>::type,
+                                             DeducedIterator>::value, int>::type = 0>
+  constexpr iterator_range(R&& r)
       : begin_(detail::adl_begin(r)), end_(detail::adl_end(r)) {}
 
   /// This constructor creates an \c iterator_range<T*> from any range with
