@@ -659,7 +659,6 @@ private:
 
 /// \name Argument type deducing constructor wrappers
 /// \relates std::iterator_range
-/// \xmlonly <nonmember/> \endxmlonly
 ///
 /// These functions do the same thing as the constructors for \c iterator_range
 /// with the same signature. They just allow users to avoid writing the
