@@ -84,6 +84,11 @@ struct is_contiguous_range<basic_string<charT, traits, Allocator>> : true_type {
 template<typename T, typename Allocator>
 struct is_contiguous_range<vector<T, Allocator>> : true_type {};
 
+template<typename T>
+constexpr auto adl_begin(T&& t) -> decltype(begin(t)) { return begin(forward<T>(t)); }
+template<typename T>
+constexpr auto adl_end(T&& t) -> decltype(end(t)) { return end(forward<T>(t)); }
+
 // Removes cv qualifiers from all levels of a multi-level pointer
 // type, not just the type level.
 template<typename T>
@@ -97,19 +102,14 @@ struct remove_all_cv_ptr<volatile T> { typedef typename remove_all_cv_ptr<T>::ty
 template<typename T>
 struct remove_all_cv_ptr<const volatile T> { typedef typename remove_all_cv_ptr<T>::type type; };
 
-template<typename From, typename To>
-struct conversion_preserves_array_indexing : false_type {};
-template<typename FromVal, typename ToVal>
-struct conversion_preserves_array_indexing<FromVal*, ToVal*>
+template <typename R, typename Iterator>
+struct is_begin_convertible_to_iterator_as_pointer : false_type {};
+template <typename R, typename T>
+struct is_begin_convertible_to_iterator_as_pointer<R, T*>
   : integral_constant<bool,
-                      is_convertible<FromVal*, ToVal*>::value &&
-                      is_same<typename remove_all_cv_ptr<FromVal>::type,
-                              typename remove_all_cv_ptr<ToVal>::type>::value> {};
-
-template<typename T>
-constexpr auto adl_begin(T&& t) -> decltype(begin(t)) { return begin(forward<T>(t)); }
-template<typename T>
-constexpr auto adl_end(T&& t) -> decltype(end(t)) { return end(forward<T>(t)); }
+                      is_convertible<decltype(&*detail::adl_begin(declval<R>())), T*>::value &&
+                      is_same<typename remove_all_cv_ptr<decltype(&*detail::adl_begin(declval<R>()))>::type,
+                              typename remove_all_cv_ptr<T*>::type>::value> {};
 
 }
 
@@ -217,9 +217,8 @@ class iterator_range {
            typename DeducedIterator = Iterator,
            typename enable_if<is_pointer<DeducedIterator>::value, int>::type = 0,
            typename enable_if<detail::is_contiguous_range<R>::value, int>::type = 0,
-           typename enable_if<detail::conversion_preserves_array_indexing<
-                                decltype(&*detail::adl_begin(std::declval<R>())),
-                                Iterator>::value, int>::type = 0>
+           typename enable_if<detail::is_begin_convertible_to_iterator_as_pointer<
+                                R, DeducedIterator>::value, int>::type = 0>
   constexpr iterator_range(R&& r)
     : begin_((detail::adl_begin(r) == detail::adl_end(r) &&
               !is_pointer<decltype(detail::adl_begin(r))>::value)
