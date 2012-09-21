@@ -186,11 +186,11 @@ class iterator_range {
   /// rvalue arguments to iterator_range() must have const begin() and end()
   /// methods.
   template<typename R,
-           typename DeducedIterator = Iterator,
-           typename enable_if<!is_pointer<DeducedIterator>::value, int>::type = 0,
+           typename DependentIterator = Iterator,
+           typename enable_if<!is_pointer<DependentIterator>::value, int>::type = 0,
            typename enable_if<detail::is_range<R>::value, int>::type = 0,
            typename enable_if<is_convertible<typename detail::begin_result<R>::type,
-                                             DeducedIterator>::value, int>::type = 0>
+                                             DependentIterator>::value, int>::type = 0>
   constexpr iterator_range(R&& r)
       : begin_(detail::adl_begin(r)), end_(detail::adl_end(r)) {}
 
@@ -213,11 +213,11 @@ class iterator_range {
   /// currently impossible to check for user-defined types.  We need a
   /// \c contiguous_iterator_tag to let users assert it.
   template<typename R,
-           typename DeducedIterator = Iterator,
-           typename enable_if<is_pointer<DeducedIterator>::value, int>::type = 0,
+           typename DependentIterator = Iterator,
+           typename enable_if<is_pointer<DependentIterator>::value, int>::type = 0,
            typename enable_if<detail::is_contiguous_range<R>::value, int>::type = 0,
            typename enable_if<detail::is_begin_convertible_to_iterator_as_pointer<
-                                R, DeducedIterator>::value, int>::type = 0>
+                                R, DependentIterator>::value, int>::type = 0>
   constexpr iterator_range(R&& r)
     : begin_((detail::adl_begin(r) == detail::adl_end(r) &&
               !is_pointer<decltype(detail::adl_begin(r))>::value)
