@@ -698,6 +698,11 @@ constexpr auto make_ptr_range(Range&& r) -> iterator_range<decltype(&*begin(r))>
 
 /// @}
 
+/// \brief A \c std::range<T> represents a contiguous range of \c T s in memory.
+///
+/// This is implemented as an alias for \c std::iterator_range<T*>
+template <typename T> using range = iterator_range<T*>;
+
 } // namespace std
 
 #endif  // _LIBCPP_RANGE

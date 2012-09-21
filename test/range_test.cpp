@@ -54,14 +54,14 @@ void test_construction() {
   assert(r.end() == v.end());
   int arr[] = {1, 2, 3, 4, 5};
   std::begin(arr);
-  std::iterator_range<int*> r2 = arr;
+  std::range<int> r2 = arr;
   assert(r2.back() == 5);
 }
 
 void test_conversion_to_pointer_range() {
   std::vector<int> v(5);
   std::iota(v.begin(), v.end(), 0);
-  std::iterator_range<int*> r = v;
+  std::range<int> r = v;
   assert(r.begin() == &*v.begin());
   assert(r[2] == 2);
 }
@@ -74,7 +74,7 @@ void takes_range(std::iterator_range<Iter> r) {
   }
 }
 
-void takes_ptr_range(std::iterator_range<const int*> r) {
+void takes_ptr_range(std::range<const int> r) {
   int expected = 0;
   for (int val : r) {
     assert(val == expected++);
@@ -96,7 +96,7 @@ void test_passing() {
   takes_range(make_range(v));
   takes_range(make_range(implicit_cast<const std::vector<int>&>(v)));
   static_assert(std::is_same<decltype(make_ptr_range(v)),
-                             std::iterator_range<int*>>::value,
+                             std::range<int>>::value,
                 "make_ptr_range should return a range of pointers");
   takes_range(make_ptr_range(v));
   takes_range(make_ptr_range(implicit_cast<const std::vector<int>&>(v)));
@@ -123,7 +123,7 @@ template<> struct CompileAssert<true> {};
 
 constexpr int arr[] = {1, 2, 3, 4, 5};
 void test_constexpr() {
-  constexpr std::iterator_range<const int*> r(arr, arr + 5);
+  constexpr std::range<const int> r(arr, arr + 5);
   CompileAssert<r.front() == 1>();
   CompileAssert<r.size() == 5>();
   CompileAssert<r[4] == 5>();
@@ -201,7 +201,7 @@ void user1() {
 //! [algorithm using iterator_range]
 
 //! [algorithm using ptr_range]
-void my_write(int fd, std::iterator_range<const char*> buffer) {
+void my_write(int fd, std::range<const char> buffer) {
   write(fd, buffer.begin(), buffer.size());
 }
 
