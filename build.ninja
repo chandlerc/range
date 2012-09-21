@@ -15,6 +15,9 @@ rule link
 build $builddir/objs/range_test.o: cxx test/range_test.cpp
 build $builddir/range_test: link $builddir/objs/range_test.o
 
-build all: phony $builddir/range_test
+build $builddir/objs/algorithm_test.o: cxx test/algorithm_test.cpp
+build $builddir/algorithm_test: link $builddir/objs/algorithm_test.o
+
+build all: phony $builddir/range_test $builddir/algorithm_test
 
 default all

@@ -1,0 +1,23 @@
+// -*- C++ -*-
+//===----------------------------- algorithm ------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_RANGE_ALGORITHM
+#define _LIBCPP_RANGE_ALGORITHM
+
+// Note, this is intended to be a wrapper header around the existing algorithm
+// header.
+#include_next <algorithm>
+
+namespace std {
+
+
+} // namespace std
+
+#endif  // _LIBCPP_RANGE_ALGORITHM
