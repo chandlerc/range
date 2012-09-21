@@ -679,10 +679,9 @@ constexpr iterator_range<Iterator> make_range(Iterator begin, Iterator end) {
 
 /// \par Participates in overload resolution if:
 /// \c begin(r) and \c end(r) return the same type.
-template<typename Range>
-constexpr auto make_range(Range&& r,
-                          typename enable_if<detail::is_range<Range>::value>::type* =0)
-    -> iterator_range<decltype(begin(r))> {
+template<typename Range,
+         typename enable_if<detail::is_range<Range>::value, int>::type = 0>
+constexpr auto make_range(Range&& r) -> iterator_range<decltype(begin(r))> {
   return iterator_range<decltype(begin(r))>(r);
 }
 
@@ -691,11 +690,10 @@ constexpr auto make_range(Range&& r,
 ///   -  that type satisfies the invariant that <code>&*(i + N) ==
 ///      (&*i) + N</code>, and
 ///   - \c &*begin(r) has a pointer type.
-template<typename Range>
-constexpr auto make_ptr_range(Range&& r,
-                              typename enable_if<detail::is_contiguous_range<Range>::value &&
-                                                 is_pointer<decltype(&*begin(r))>::value>::type* =0)
-    -> iterator_range<decltype(&*begin(r))> {
+template<typename Range,
+         typename enable_if<detail::is_contiguous_range<Range>::value, int>::type = 0,
+         typename enable_if<is_pointer<decltype(&*detail::adl_begin(declval<Range>()))>::value, int>::type = 0>
+constexpr auto make_ptr_range(Range&& r) -> iterator_range<decltype(&*begin(r))> {
   return iterator_range<decltype(&*begin(r))>(r);
 }
 
